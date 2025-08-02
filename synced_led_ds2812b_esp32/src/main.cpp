@@ -23,6 +23,9 @@ void setup() {
     Serial.println("ERROR !!");
   }
 
+  float noiseFloor[NUM_BANDS];
+  calibrateNoiseFloor(noiseFloor, NUM_BANDS, 20);  // attends le silence ici
+
   Serial.println("system setup done.");
   Serial.flush();
 }
@@ -41,16 +44,18 @@ void loop() {
   }
   */
 
-  double dB = readVolume_dBFS();
+  // double dB = readVolume_dBFS();
 
-  if (dB) {
-    Serial.printf("Sound level measured : %.2f dBFS\n", dB);
-  } else {
-    Serial.println("MICROPHONE ERROR !!");
-  }
+  // if (dB) {
+  //   Serial.printf("Sound level measured : %.2f dBFS\n", dB);
+  // } else {
+  //   Serial.println("MICROPHONE ERROR !!");
+  // }
 
-  printFrequencySpectrum();
+  // printFrequencySpectrum();
 
-  delay(2000);
+  detectDrums();
+
+  // delay(2000);
 
 }
