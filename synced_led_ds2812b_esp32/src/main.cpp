@@ -49,4 +49,8 @@ void loop() {
     Serial.println("MICROPHONE ERROR !!");
   }
 
+  printFrequencySpectrum();
+
+  delay(2000);
+
 }

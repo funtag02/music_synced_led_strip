@@ -1,4 +1,5 @@
 #include <driver/i2s.h>
+#include <arduinoFFT.h>
 #include "audio_signal.hpp"
 #include <Arduino.h> // pour sqrt et log10
 
@@ -60,4 +61,51 @@ double readVolume_dBFS() {
   double dB = 20.0 * log10(rms + 1e-9); // +1e-9 pour éviter log(0)
 
   return dB;
+}
+
+static double vReal[SAMPLE_COUNT];
+static double vImag[SAMPLE_COUNT];
+static ArduinoFFT<double> FFT(vReal, vImag, SAMPLE_COUNT, SAMPLING_FREQ);
+
+void printFrequencySpectrum() {
+  const size_t bytes_needed = SAMPLE_COUNT * sizeof(int32_t);
+  int32_t *raw_buffer = (int32_t*)malloc(bytes_needed);
+  size_t bytes_read;
+
+  if (!raw_buffer) {
+    Serial.println("Erreur : mémoire insuffisante pour l'analyse FFT");
+    return;
+  }
+
+  // Lecture brute I2S
+  esp_err_t result = i2s_read(I2S_NUM_0, raw_buffer, bytes_needed, &bytes_read, portMAX_DELAY);
+
+  if (result != ESP_OK || bytes_read != bytes_needed) {
+    Serial.println("Erreur de lecture I2S pour la FFT");
+    free(raw_buffer);
+    return;
+  }
+
+  // Extraction + normalisation
+  for (int i = 0; i < SAMPLE_COUNT; i++) {
+    int32_t sample = raw_buffer[i] >> 8;  // 24 bits utiles
+    float normalized = sample / 8388608.0f; // [-1.0, 1.0]
+    vReal[i] = normalized;
+    vImag[i] = 0.0;
+  }
+
+  free(raw_buffer);
+
+  // FFT
+  FFT.windowing(FFT_WIN_TYP_HAMMING, FFT_FORWARD);
+  FFT.compute(FFT_FORWARD);
+  FFT.complexToMagnitude();
+
+  Serial.println("Spectre fréquentiel (Hz | Amplitude) :");
+  for (int i = 1; i < SAMPLE_COUNT / 2; i++) {
+    double freq = (i * 1.0 * SAMPLING_FREQ) / SAMPLE_COUNT;
+    if (vReal[i] > 0.01) {  // seuil d'affichage
+      Serial.printf("%5.0f Hz : %f\n", freq, vReal[i]);
+    }
+  }
 }
